@@ -8,6 +8,9 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
+import org.randyzhu.slidemgr.FourStageViperSlide;
+import org.randyzhu.slidemgr.JunctionType;
+
 @SuppressWarnings("unused")
 @TeleOp(name = "GodWheels")
 public class MecanumDrive extends LinearOpMode {
@@ -28,11 +31,13 @@ public class MecanumDrive extends LinearOpMode {
 
         MotorEx mSlide = new MotorEx(hardwareMap, "mSlide", Motor.GoBILDA.RPM_312);
 
-        for (MotorEx motor : new MotorEx[]{mFrontLeft, mFrontRight, mBackLeft, mBackRight, mSlide}) {
-            motor.setZeroPowerBehavior(Motor.ZeroPowerBehavior.BRAKE);
+
+        for (MotorEx motor : new MotorEx[]{mFrontLeft, mFrontRight, mBackLeft, mBackRight}) {
+            motor.setZeroPowerBehavior(Motor.ZeroPowerBehavior.FLOAT);
         }
 
-        mSlide.setRunMode(Motor.RunMode.PositionControl);
+        // initialize slide, according to fusion 360 our claw is 63.447mm above the ground
+        FourStageViperSlide slide = new FourStageViperSlide(63.447, -4400, mSlide, telemetry);
 
 
         while (opModeIsActive()) {
@@ -42,37 +47,26 @@ public class MecanumDrive extends LinearOpMode {
 
             GamepadEx driverOp = new GamepadEx(gamepad1);
 
+            GamepadEx operatorOp = new GamepadEx(gamepad2);
+
             mecanumDrive.driveRobotCentric(-driverOp.getLeftX(), -driverOp.getLeftY(), -driverOp.getRightX());
 
-            // motor for linear slide
-            if (driverOp.getButton(GamepadKeys.Button.A)) {
-                mSlide.setTargetPosition(-4400);
-                mSlide.set(0);
-                mSlide.setPositionTolerance(100);
-
-                while (!mSlide.atTargetPosition()) {
-                    mSlide.set(1);
-                }
-                mSlide.stopMotor();
+            if (driverOp.getButton(GamepadKeys.Button.X)) {
+                slide.goToJunction(JunctionType.LOW);
+            } else if (driverOp.getButton(GamepadKeys.Button.Y)) {
+                slide.goToJunction(JunctionType.MEDIUM);
             } else if (driverOp.getButton(GamepadKeys.Button.B)) {
-                mSlide.setTargetPosition(0);
-                mSlide.set(0);
-                mSlide.setPositionTolerance(100);
-
-                while (!mSlide.atTargetPosition()) {
-                    mSlide.set(1);
-                }
-                mSlide.stopMotor();
+                slide.goToJunction(JunctionType.HIGH);
+            } else if (driverOp.getButton(GamepadKeys.Button.A)) {
+                slide.rest();
             }
 
-            if (driverOp.getButton(GamepadKeys.Button.DPAD_UP) && mSlide.getCurrentPosition() < -100) {
-                mSlide.set(0.8);
-            } else if (driverOp.getButton(GamepadKeys.Button.DPAD_DOWN) && mSlide.getCurrentPosition() > -4400) {
-                mSlide.set(-0.8);
-            } else {
-                mSlide.set(0);
-            }
+            slide.setPower(operatorOp.getLeftY());
 
+            // calibrate resting state, done ONLY when the slide is at the ground
+            if (driverOp.getButton(GamepadKeys.Button.DPAD_LEFT) && driverOp.getButton(GamepadKeys.Button.B)) {
+                slide.calibrateRestingState();
+            }
 
             telemetry.addData("slide position", mSlide.getCurrentPosition());
             telemetry.update();
