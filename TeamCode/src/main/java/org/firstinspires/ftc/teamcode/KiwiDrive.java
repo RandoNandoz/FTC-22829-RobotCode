@@ -4,11 +4,13 @@ import com.arcrobotics.ftclib.drivebase.HDrive;
 import com.arcrobotics.ftclib.gamepad.GamepadEx;
 import com.arcrobotics.ftclib.gamepad.GamepadKeys;
 import com.arcrobotics.ftclib.hardware.motors.Motor;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 @SuppressWarnings("unused")
+@Disabled
 @TeleOp(name = "CalBotTwo")
 public class KiwiDrive extends LinearOpMode {
 
