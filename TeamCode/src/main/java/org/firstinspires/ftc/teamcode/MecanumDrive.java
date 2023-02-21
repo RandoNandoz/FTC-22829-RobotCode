@@ -4,15 +4,24 @@ import com.arcrobotics.ftclib.gamepad.GamepadEx;
 import com.arcrobotics.ftclib.gamepad.GamepadKeys;
 import com.arcrobotics.ftclib.hardware.motors.Motor;
 import com.arcrobotics.ftclib.hardware.motors.MotorEx;
+import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.AngularVelocity;
+import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
+import org.firstinspires.ftc.robotcore.external.navigation.AxesReference;
+import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
 import org.randyzhu.slidemgr.FourStageViperSlide;
 import org.randyzhu.slidemgr.JunctionType;
 
+import java.util.Locale;
+
 @SuppressWarnings("unused")
-@TeleOp(name = "GodWheels")
+@TeleOp(name = "MecanumDrive")
 public class MecanumDrive extends LinearOpMode {
     ElapsedTime runtime = new ElapsedTime();
 
@@ -29,8 +38,33 @@ public class MecanumDrive extends LinearOpMode {
         var mBackLeft = new MotorEx(hardwareMap, "mBackLeft", Motor.GoBILDA.RPM_312);
         var mBackRight = new MotorEx(hardwareMap, "mBackRight", Motor.GoBILDA.RPM_312);
 
+        // initialize imu
+        IMU imu = hardwareMap.get(IMU.class, "imu");
+
+        imu.initialize(
+                new IMU.Parameters(
+                        new RevHubOrientationOnRobot(
+                                RevHubOrientationOnRobot.LogoFacingDirection.LEFT,
+                                RevHubOrientationOnRobot.UsbFacingDirection.UP
+                        )
+                )
+        );
+
+        Orientation robotOrientation = imu.getRobotOrientation(
+                AxesReference.INTRINSIC,
+                AxesOrder.XYZ,
+                AngleUnit.DEGREES
+        );
+
+        AngularVelocity robotAngularVelocity = imu.getRobotAngularVelocity(AngleUnit.DEGREES);
+
         // initialize drivetrain
-        var mecanumDrive = new com.arcrobotics.ftclib.drivebase.MecanumDrive(mFrontLeft, mFrontRight, mBackLeft, mBackRight);
+        var mecanumDrive = new com.arcrobotics.ftclib.drivebase.MecanumDrive(
+                mFrontLeft,
+                mFrontRight,
+                mBackLeft,
+                mBackRight
+        );
 
         // initialize gamepads
         GamepadEx driverOp = new GamepadEx(gamepad1);
@@ -52,11 +86,34 @@ public class MecanumDrive extends LinearOpMode {
 
 
         while (opModeIsActive()) {
+            var xGyro = robotOrientation.firstAngle;
+            var yGyro = robotOrientation.secondAngle;
+            var zGyro = robotOrientation.thirdAngle;
+
+            var xVel = robotAngularVelocity.xRotationRate;
+            var yVel = robotAngularVelocity.yRotationRate;
+            var zVel = robotAngularVelocity.zRotationRate;
+
+
             telemetry.addData("Status", "Run Time: " + runtime);
+            telemetry.addData("Gyro Data: ", String.format(
+                    Locale.CANADA,
+                    "X: %.2f, Y: %.2f, Z: %.2f",
+                    xGyro,
+                    yGyro,
+                    zGyro
+            ));
+            telemetry.addData("Gyro Velocities: ", String.format(
+                    Locale.CANADA,
+                    "X: %.2f, Y: %.2f, Z: %.2f",
+                    xVel,
+                    yVel,
+                    zVel
+            ));
             telemetry.addData("Slide Target Height: ", slide.getTargetHeight());
             telemetry.addData("Slide Encoder Reported Height: ", slide.getEncoderHeight());
 
-            mecanumDrive.driveRobotCentric(-driverOp.getLeftX(), -driverOp.getLeftY(), -driverOp.getRightX());
+            mecanumDrive.driveRobotCentric(-driverOp.getLeftX(), -driverOp.getLeftY(), -driverOp.getRightX(), true);
 
             if (driverOp.getButton(GamepadKeys.Button.X)) {
                 slide.goToJunction(JunctionType.LOW);
