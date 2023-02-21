@@ -65,20 +65,46 @@ public class MecanumDrive extends LinearOpMode {
 
 
         while (opModeIsActive()) {
+            // imu data
             var xGyro = robotOrientation.firstAngle;
             var yGyro = robotOrientation.secondAngle;
             var zGyro = robotOrientation.thirdAngle;
-
             var xVel = robotAngularVelocity.xRotationRate;
             var yVel = robotAngularVelocity.yRotationRate;
             var zVel = robotAngularVelocity.zRotationRate;
 
-
+            // report runtime
             telemetry.addData("Status", "Run Time: " + runtime);
-            telemetry.addData("Gyro Data: ", String.format(Locale.CANADA, "X: %.2f, Y: %.2f, Z: %.2f", xGyro, yGyro, zGyro));
-            telemetry.addData("Gyro Velocities: ", String.format(Locale.CANADA, "X: %.2f, Y: %.2f, Z: %.2f", xVel, yVel, zVel));
-            telemetry.addData("Slide Target Height: ", slide.getTargetHeight());
-            telemetry.addData("Slide Encoder Reported Height: ", slide.getEncoderHeight());
+
+            // report imu data
+            telemetry.addData("Gyro Data: ", String.format(Locale.CANADA, "X: %.2f deg, Y: %.2f deg, Z: %.2f deg", xGyro, yGyro, zGyro));
+            telemetry.addData("Gyro Velocities: ", String.format(Locale.CANADA, "X: %.2f deg/s, Y: %.2f deg/s, Z: %.2f deg/s", xVel, yVel, zVel));
+
+            // report slide data
+            telemetry.addData("Slide Power: ", String.format(Locale.CANADA, "%.2f%%", slide.getMotorPower() * 100));
+            telemetry.addData("Slide Motor Angular Velocity: ", String.format(Locale.CANADA, "%.2f ticks/s", slide.getMotorVelocity()));
+            telemetry.addData("Slide Encoder Ticks: ", String.format(Locale.CANADA, "%f ticks", slide.getMotorEncoderTicks()));
+            telemetry.addData("Slide Target Height: ", String.format("%s mm", slide.getTargetHeight()));
+            telemetry.addData("Slide Encoder Reported Height: ", String.format("%s mm", slide.getEncoderHeight()));
+
+            // report motor powers
+            telemetry.addData("Front Left Motor Power: ", String.format(Locale.CANADA, "%.2f%%", mFrontLeft.motorEx.getPower() * 100));
+            telemetry.addData("Front Right Motor Power: ", String.format(Locale.CANADA, "%.2f%%", mFrontRight.motorEx.getPower()));
+            telemetry.addData("Back Left Motor Power: ", String.format(Locale.CANADA, "%.2f%%", mBackLeft.motorEx.getPower()));
+            telemetry.addData("Back Right Motor Power: ", String.format(Locale.CANADA, "%.2f%%", mBackRight.motorEx.getPower()));
+
+            // report motor angular velocities
+            telemetry.addData("Front Left Motor Angular Velocity: ", String.format(Locale.CANADA, "%.2f ticks/s", mFrontLeft.getCorrectedVelocity()));
+            telemetry.addData("Front Right Motor Angular Velocity: ", String.format(Locale.CANADA, "%.2f ticks/s", mFrontRight.getCorrectedVelocity()));
+            telemetry.addData("Back Left Motor Angular Velocity: ", String.format(Locale.CANADA, "%.2f ticks/s", mBackLeft.getCorrectedVelocity()));
+            telemetry.addData("Back Right Motor Angular Velocity: ", String.format(Locale.CANADA, "%.2f ticks/s", mBackRight.getCorrectedVelocity()));
+
+            // report motor encoder ticks
+            telemetry.addData("Front Left Motor Encoder Ticks: ", String.format(Locale.CANADA, "%d ticks", mFrontLeft.getCurrentPosition()));
+            telemetry.addData("Front Right Motor Encoder Ticks: ", String.format(Locale.CANADA, "%d ticks", mFrontRight.getCurrentPosition()));
+            telemetry.addData("Back Left Motor Encoder Ticks: ", String.format(Locale.CANADA, "%d ticks", mBackLeft.getCurrentPosition()));
+            telemetry.addData("Back Right Motor Encoder Ticks: ", String.format(Locale.CANADA, "%d ticks", mBackRight.getCurrentPosition()));
+
 
             mecanumDrive.driveRobotCentric(-driverOp.getLeftX(), -driverOp.getLeftY(), -driverOp.getRightX(), true);
 
@@ -92,9 +118,7 @@ public class MecanumDrive extends LinearOpMode {
                 slide.autoReset();
             }
 
-            if (driverOp.getButton(GamepadKeys.Button.RIGHT_STICK_BUTTON)) {
-                slide.setPower(driverOp.getRightY());
-            }
+            slide.setPower(driverOp.getTrigger(GamepadKeys.Trigger.RIGHT_TRIGGER) - driverOp.getTrigger(GamepadKeys.Trigger.LEFT_TRIGGER));
 
             // calibrate resting state, done ONLY when the slide is at the ground
             if (operatorOp.getButton(GamepadKeys.Button.B)) {
@@ -105,6 +129,9 @@ public class MecanumDrive extends LinearOpMode {
                     slide.autoReset();
                 }
             }
+
+            operatorOp.getGamepadButton(GamepadKeys.Button.A).whenPressed(() -> slide.holdPosition(1.0 / 3.0)).whenReleased(slide::stopMotor);
+
 
             telemetry.update();
         }

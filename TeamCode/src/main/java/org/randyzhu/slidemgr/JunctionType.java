@@ -11,10 +11,7 @@ import org.jetbrains.annotations.Contract;
  * - GROUND: (effectively) 0 inches
  */
 public enum JunctionType {
-    GROUND(0),
-    LOW(13.5),
-    MEDIUM(23.5),
-    HIGH(33.5);
+    GROUND(0), LOW(13.5), MEDIUM(23.5), HIGH(33.5);
 
     final double heightInches;
     final double heightMillimeters;
@@ -30,6 +27,7 @@ public enum JunctionType {
     /**
      * @return The height of the junction in inches
      */
+    @Contract(pure = true)
     double getHeightInches() {
         return this.heightInches;
     }

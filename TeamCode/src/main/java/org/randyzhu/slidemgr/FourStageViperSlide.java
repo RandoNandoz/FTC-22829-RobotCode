@@ -71,16 +71,21 @@ public class FourStageViperSlide {
         this.driveMotor.setRunMode(MotorEx.RunMode.PositionControl);
     }
 
-    public FourStageViperSlide(double mountHeightMM, double encoderTicksToFull, MotorEx driveMotor, Telemetry telemetry) {
-        this.mountHeightMM = mountHeightMM;
-        // the target height is the same as the mount height, at the beginning
-        this.targetHeight = mountHeightMM;
-        this.encoderHeight = mountHeightMM;
-        this.encoderTicksToFull = encoderTicksToFull;
-        this.driveMotor = driveMotor;
-        this.powerCoefficient = 1;
-        this.telemetry = telemetry;
-        this.driveMotor.setRunMode(MotorEx.RunMode.PositionControl);
+    /**
+     * Holds the slide in place, don't hold for too long as it will burn out the motor
+     *
+     * @param maxPower The maximum power to use to hold the slide in place
+     */
+    public void holdPosition(double maxPower) {
+        driveMotor.setTargetPosition(driveMotor.getCurrentPosition() + 20);
+        driveMotor.set(maxPower);
+    }
+
+    /**
+     * Stops the slide motor.
+     */
+    public void stopMotor() {
+        driveMotor.stopMotor();
     }
 
     /**
@@ -113,7 +118,7 @@ public class FourStageViperSlide {
      *
      * @param height The height to move the slide to, in millimeters. Relative to total slide extension.
      */
-    private void setHeight(double height) {
+    public void setHeight(double height) {
         if (height > MAX_EXTENSION_LENGTH_MM || height < mountHeightMM) {
             throw new IllegalArgumentException("Height must be between 0 and " + MAX_EXTENSION_LENGTH_MM);
         }
@@ -144,7 +149,6 @@ public class FourStageViperSlide {
 
             if (timer.seconds() >= 5) {
                 telemetry.addData("ERROR: ", "Slide motor timed out " + reportPosition());
-                telemetry.update();
             }
 
             driveMotor.stopMotor();
@@ -162,8 +166,6 @@ public class FourStageViperSlide {
                     telemetry.addData("Slide motor undershot: ", reportPosition());
                 }
             }
-
-            telemetry.update();
         });
 
         // if the current slide thread is still running, wait for it to finish
@@ -231,7 +233,36 @@ public class FourStageViperSlide {
         return encoderHeight;
     }
 
-    public String reportPosition() {
+    /**
+     * @return The number of encoder ticks the slide motor has moved by
+     */
+    @Contract(pure = true)
+    public double getMotorEncoderTicks() {
+        return driveMotor.getCurrentPosition();
+    }
+
+    /**
+     * @return The power of the slide motor
+     */
+    @Contract(pure = true)
+    public double getMotorPower() {
+        return driveMotor.motorEx.getPower();
+    }
+
+    /**
+     * @return The angular velocity of the slide motor
+     */
+    @Contract(pure = true)
+    public double getMotorVelocity() {
+        return driveMotor.getCorrectedVelocity();
+    }
+
+    /**
+     * @return The target and encoder reported position the slide is at
+     */
+    @NonNull
+    @Contract(pure = true)
+    private String reportPosition() {
         return "Target Height: " + targetHeight + "mm" + "Encoder Height: " + encoderHeight + "mm";
     }
 }
