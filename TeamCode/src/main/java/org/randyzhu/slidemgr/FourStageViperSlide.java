@@ -22,7 +22,6 @@ public class FourStageViperSlide {
      */
     private final double mountHeightMM;
 
-
     /**
      * Maximum extension length of the gobilda 4 stage slide
      */
@@ -32,22 +31,22 @@ public class FourStageViperSlide {
      * Number of encoder ticks to fully extend the slide
      */
     private final double encoderTicksToFull;
-
+    /**
+     * Power coefficient for the slide motor
+     */
+    private final double powerCoefficient;
     /**
      * Telemetry object to send data to the driver station
      */
     Telemetry telemetry;
-
     /**
      * Current height of the mounted object in millimeters
      */
     private double targetHeight;
-
     /**
      * Raw extended of the slide in mm, reported by the encoder
      */
     private double encoderHeight;
-
     /**
      * The thread that runs the slide movement code, so that it doesn't block the drive thread
      */
@@ -60,6 +59,18 @@ public class FourStageViperSlide {
      * @param driveMotor         The motor that drives the slide
      * @param telemetry          The telemetry object to send data to the driver station
      */
+    public FourStageViperSlide(double mountHeightMM, double encoderTicksToFull, MotorEx driveMotor, double powerCoefficient, Telemetry telemetry) {
+        this.mountHeightMM = mountHeightMM;
+        // the target height is the same as the mount height, at the beginning
+        this.targetHeight = mountHeightMM;
+        this.encoderHeight = mountHeightMM;
+        this.encoderTicksToFull = encoderTicksToFull;
+        this.driveMotor = driveMotor;
+        this.powerCoefficient = powerCoefficient;
+        this.telemetry = telemetry;
+        this.driveMotor.setRunMode(MotorEx.RunMode.PositionControl);
+    }
+
     public FourStageViperSlide(double mountHeightMM, double encoderTicksToFull, MotorEx driveMotor, Telemetry telemetry) {
         this.mountHeightMM = mountHeightMM;
         // the target height is the same as the mount height, at the beginning
@@ -67,6 +78,7 @@ public class FourStageViperSlide {
         this.encoderHeight = mountHeightMM;
         this.encoderTicksToFull = encoderTicksToFull;
         this.driveMotor = driveMotor;
+        this.powerCoefficient = 1;
         this.telemetry = telemetry;
         this.driveMotor.setRunMode(MotorEx.RunMode.PositionControl);
     }
@@ -86,9 +98,9 @@ public class FourStageViperSlide {
 
         // if the slide is at the top or bottom, don't let it move any further
         if (driveMotor.getCurrentPosition() > encoderTicksToFull && power < 0) {
-            driveMotor.set(power);
+            driveMotor.set(power * powerCoefficient);
         } else if (driveMotor.getCurrentPosition() < -100 && power > 0) {
-            driveMotor.set(power);
+            driveMotor.set(power * powerCoefficient);
         }
         driveMotor.setRunMode(MotorEx.RunMode.PositionControl);
 
@@ -127,7 +139,7 @@ public class FourStageViperSlide {
             // wait until the motor is at the target position or 5 second time out has passed
             telemetry.addData("Beginning to move slide: ", reportPosition());
             while (!driveMotor.atTargetPosition() || timer.seconds() < 5) {
-                driveMotor.set(1);
+                driveMotor.set(powerCoefficient * powerCoefficient);
             }
 
             if (timer.seconds() >= 5) {

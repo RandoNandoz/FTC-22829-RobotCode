@@ -41,30 +41,14 @@ public class MecanumDrive extends LinearOpMode {
         // initialize imu
         IMU imu = hardwareMap.get(IMU.class, "imu");
 
-        imu.initialize(
-                new IMU.Parameters(
-                        new RevHubOrientationOnRobot(
-                                RevHubOrientationOnRobot.LogoFacingDirection.LEFT,
-                                RevHubOrientationOnRobot.UsbFacingDirection.UP
-                        )
-                )
-        );
+        imu.initialize(new IMU.Parameters(new RevHubOrientationOnRobot(RevHubOrientationOnRobot.LogoFacingDirection.LEFT, RevHubOrientationOnRobot.UsbFacingDirection.UP)));
 
-        Orientation robotOrientation = imu.getRobotOrientation(
-                AxesReference.INTRINSIC,
-                AxesOrder.XYZ,
-                AngleUnit.DEGREES
-        );
+        Orientation robotOrientation = imu.getRobotOrientation(AxesReference.INTRINSIC, AxesOrder.XYZ, AngleUnit.DEGREES);
 
         AngularVelocity robotAngularVelocity = imu.getRobotAngularVelocity(AngleUnit.DEGREES);
 
         // initialize drivetrain
-        var mecanumDrive = new com.arcrobotics.ftclib.drivebase.MecanumDrive(
-                mFrontLeft,
-                mFrontRight,
-                mBackLeft,
-                mBackRight
-        );
+        var mecanumDrive = new com.arcrobotics.ftclib.drivebase.MecanumDrive(mFrontLeft, mFrontRight, mBackLeft, mBackRight);
 
         // initialize gamepads
         GamepadEx driverOp = new GamepadEx(gamepad1);
@@ -77,12 +61,7 @@ public class MecanumDrive extends LinearOpMode {
         }
 
         // initialize slide, according to fusion 360 our claw is 63.447mm above the ground
-        FourStageViperSlide slide = new FourStageViperSlide(
-                63.447,
-                -4400,
-                new MotorEx(hardwareMap, "mSlide", Motor.GoBILDA.RPM_312),
-                telemetry
-        );
+        FourStageViperSlide slide = new FourStageViperSlide(63.447, -4400, new MotorEx(hardwareMap, "mSlide", Motor.GoBILDA.RPM_312), 2.0 / 3.0, telemetry);
 
 
         while (opModeIsActive()) {
@@ -96,20 +75,8 @@ public class MecanumDrive extends LinearOpMode {
 
 
             telemetry.addData("Status", "Run Time: " + runtime);
-            telemetry.addData("Gyro Data: ", String.format(
-                    Locale.CANADA,
-                    "X: %.2f, Y: %.2f, Z: %.2f",
-                    xGyro,
-                    yGyro,
-                    zGyro
-            ));
-            telemetry.addData("Gyro Velocities: ", String.format(
-                    Locale.CANADA,
-                    "X: %.2f, Y: %.2f, Z: %.2f",
-                    xVel,
-                    yVel,
-                    zVel
-            ));
+            telemetry.addData("Gyro Data: ", String.format(Locale.CANADA, "X: %.2f, Y: %.2f, Z: %.2f", xGyro, yGyro, zGyro));
+            telemetry.addData("Gyro Velocities: ", String.format(Locale.CANADA, "X: %.2f, Y: %.2f, Z: %.2f", xVel, yVel, zVel));
             telemetry.addData("Slide Target Height: ", slide.getTargetHeight());
             telemetry.addData("Slide Encoder Reported Height: ", slide.getEncoderHeight());
 
