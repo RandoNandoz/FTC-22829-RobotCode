@@ -1,7 +1,10 @@
 package org.randyzhu.slidemgr;
 
+import android.util.Log;
+
 import androidx.annotation.NonNull;
 
+import com.arcrobotics.ftclib.hardware.motors.Motor;
 import com.arcrobotics.ftclib.hardware.motors.MotorEx;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
@@ -98,16 +101,18 @@ public class FourStageViperSlide {
             throw new IllegalArgumentException("Power must be between -1 and 1");
         }
 
-        driveMotor.setRunMode(MotorEx.RunMode.RawPower);
-        driveMotor.setZeroPowerBehavior(MotorEx.ZeroPowerBehavior.BRAKE);
+        driveMotor.setRunMode(Motor.RunMode.RawPower);
 
         // if the slide is at the top or bottom, don't let it move any further
         if (driveMotor.getCurrentPosition() > encoderTicksToFull && power < 0) {
             driveMotor.set(power * powerCoefficient);
-        } else if (driveMotor.getCurrentPosition() < -100 && power > 0) {
-            driveMotor.set(power * powerCoefficient);
+        } else if (driveMotor.getCurrentPosition() < -80 && power > 0) {
+            driveMotor.set(power * powerCoefficient );
+        } else {
+            driveMotor.set(0);
         }
-        driveMotor.setRunMode(MotorEx.RunMode.PositionControl);
+
+        driveMotor.setRunMode(Motor.RunMode.PositionControl);
 
         encoderHeight = (driveMotor.getCurrentPosition() / encoderTicksToFull) * MAX_EXTENSION_LENGTH_MM;
         targetHeight = encoderHeight;
@@ -118,8 +123,8 @@ public class FourStageViperSlide {
      *
      * @param height The height to move the slide to, in millimeters. Relative to total slide extension.
      */
-    public void setHeight(double height) {
-        if (height > MAX_EXTENSION_LENGTH_MM || height < mountHeightMM) {
+    public void setHeight(double height, boolean rstPos) {
+        if (height > MAX_EXTENSION_LENGTH_MM || height < 0) {
             throw new IllegalArgumentException("Height must be between 0 and " + MAX_EXTENSION_LENGTH_MM);
         }
 
@@ -139,49 +144,36 @@ public class FourStageViperSlide {
         driveMotor.setPositionTolerance(60);
 
         // create the thread that will move the slide to the target position
-        var moveThread = new Thread(() -> {
-            ElapsedTime timer = new ElapsedTime();
-            // wait until the motor is at the target position or 5 second time out has passed
-            telemetry.addData("Beginning to move slide: ", reportPosition());
-            while (!driveMotor.atTargetPosition() || timer.seconds() < 5) {
-                driveMotor.set(powerCoefficient * powerCoefficient);
-            }
-
-            if (timer.seconds() >= 5) {
-                telemetry.addData("ERROR: ", "Slide motor timed out " + reportPosition());
-            }
-
-            driveMotor.stopMotor();
-
-            encoderHeight = (driveMotor.getCurrentPosition() / encoderTicksToFull) * MAX_EXTENSION_LENGTH_MM;
-            targetHeight = height;
-
-            telemetry.addData("Target Height: ", reportPosition());
-            telemetry.addData("Delta between target and encoder: ", targetHeight - encoderHeight);
-
-            if (Math.abs(encoderHeight - targetHeight) > 50) {
-                if (Math.abs(encoderHeight) > targetHeight) {
-                    telemetry.addData("Slide motor overshot: ", reportPosition());
-                } else if (Math.abs(encoderHeight) < targetHeight) {
-                    telemetry.addData("Slide motor undershot: ", reportPosition());
-                }
-            }
-        });
-
-        // if the current slide thread is still running, wait for it to finish
-        if (slideThread != null && slideThread.isAlive()) {
-            try {
-                slideThread.join();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        } else {
-            // otherwise, set the current slide thread to the new thread
-            slideThread = moveThread;
+        ElapsedTime timer = new ElapsedTime();
+        // wait until the motor is at the target position or 5 second time out has passed
+        telemetry.addData("Beginning to move slide: ", reportPosition());
+        while (!driveMotor.atTargetPosition() && timer.seconds() < 5) {
+            driveMotor.set(powerCoefficient);
         }
 
-        // start the thread
-        slideThread.start();
+        if (timer.seconds() >= 5) {
+            telemetry.addData("ERROR: ", "Slide motor timed out " + reportPosition());
+        }
+
+        driveMotor.stopMotor();
+
+        encoderHeight = (driveMotor.getCurrentPosition() / encoderTicksToFull) * MAX_EXTENSION_LENGTH_MM;
+        targetHeight = height;
+
+        telemetry.addData("Target Height: ", reportPosition());
+        telemetry.addData("Delta between target and encoder: ", targetHeight - encoderHeight);
+
+        if (Math.abs(encoderHeight - targetHeight) > 50) {
+            if (Math.abs(encoderHeight) > targetHeight) {
+                telemetry.addData("Slide motor overshot: ", reportPosition());
+            } else if (Math.abs(encoderHeight) < targetHeight) {
+                telemetry.addData("Slide motor undershot: ", reportPosition());
+            }
+        }
+
+        if (rstPos) {
+            manualReset();
+        }
     }
 
     /**
@@ -189,10 +181,7 @@ public class FourStageViperSlide {
      */
     public void autoReset() {
         telemetry.addData("Auto Reset", "Starting");
-        driveMotor.setZeroPowerBehavior(MotorEx.ZeroPowerBehavior.FLOAT);
         goToJunction(JunctionType.GROUND);
-
-        manualReset();
         telemetry.addData("Auto Reset", "Done");
     }
 
@@ -206,15 +195,19 @@ public class FourStageViperSlide {
         targetHeight = mountHeightMM;
     }
 
-
     /**
      * Moves the slide to a specified junction
      *
      * @param junction The junction to move the slide to, see {@link JunctionType}
      */
     public void goToJunction(@NonNull JunctionType junction) {
-        setHeight(Math.min(Math.max(junction.getHeightMillimeters() - mountHeightMM, 0), MAX_EXTENSION_LENGTH_MM));
-        telemetry.addData("Going to: ", junction.name().toLowerCase() + " junction");
+        Log.d("USERCODE: ", String.valueOf(junction.getHeightMillimeters() - mountHeightMM));
+        telemetry.addData("Going to junction: ", junction.name());
+        if (junction == JunctionType.GROUND) {
+            setHeight(0, true);
+        } else {
+            setHeight(Math.min(junction.getHeightMillimeters() - mountHeightMM + 650, MAX_EXTENSION_LENGTH_MM), false);
+        }
     }
 
     /**
